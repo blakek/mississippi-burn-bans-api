@@ -10,5 +10,10 @@
   },
   "dependencies": {
     "urlpattern-polyfill": "^10.0.0"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
   }
 }
