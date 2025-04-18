@@ -7,6 +7,7 @@ RUN bun install --frozen-lockfile
 RUN bun run build
 
 # copy production dependencies and source code into final image
-FROM alpine:latest AS release
+FROM oven/bun:1 AS release
+WORKDIR /app
 COPY --from=prerelease /app/dist/mississippi-burn-bans-api /app/mississippi-burn-bans-api
 ENTRYPOINT [ "/app/mississippi-burn-bans-api" ]
