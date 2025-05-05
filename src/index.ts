@@ -1,7 +1,5 @@
 import * as Bun from "bun";
-import { URLPattern } from "urlpattern-polyfill";
 import { fetchBurnBanData, type BurnBanData } from "./burn-bans";
-import { router, type Route } from "./router";
 import { SimpleCache } from "./simple-cache";
 import { Time } from "./time";
 
@@ -24,7 +22,9 @@ function response(message: unknown, options: Partial<ResponseOptions> = {}) {
   });
 }
 
-async function fetchBurnBanDataOnce(): Promise<[BurnBanData[], HitCache: boolean]> {
+async function fetchBurnBanDataOnce(): Promise<
+  [BurnBanData[], HitCache: boolean]
+> {
   const cachedData = await cache.get();
 
   if (cachedData) {
@@ -37,27 +37,20 @@ async function fetchBurnBanDataOnce(): Promise<[BurnBanData[], HitCache: boolean
   return [burnBanData, false];
 }
 
-const routes: Route[] = [
-  {
-    pattern: new URLPattern({ pathname: "/api/burn-bans" }),
-    async handler() {
+const server = Bun.serve({
+  routes: {
+    "/api/burn-bans": async () => {
       const [burnBanData, servedFromCache] = await fetchBurnBanDataOnce();
       return response(burnBanData, { servedFromCache });
     },
-  },
-  {
-    pattern: new URLPattern({ pathname: "/api/burn-bans/:county" }),
-    async handler(_request, params) {
+
+    "/api/burn-bans/:county": async (request) => {
       const [burnBanData, servedFromCache] = await fetchBurnBanDataOnce();
 
-      const county = params.county;
-
-      if (!county) {
-        return response("A county must be provided", { status: 400 });
-      }
+      const county = request.params.county.toLowerCase();
 
       const countyBurnBanData = burnBanData.find(
-        (data) => data.counties.toLowerCase() === county.toLowerCase()
+        (data) => data.counties.toLowerCase() === county
       );
 
       if (!countyBurnBanData) {
@@ -68,14 +61,6 @@ const routes: Route[] = [
 
       return response(countyBurnBanData, { servedFromCache });
     },
-  },
-];
-
-const requestHandler = router(routes);
-
-const server = Bun.serve({
-  async fetch(request) {
-    return requestHandler(request);
   },
 });
 

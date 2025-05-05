@@ -8,9 +8,6 @@
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
-  "dependencies": {
-    "urlpattern-polyfill": "^10.0.0"
-  },
   "scripts": {
     "build": "rm -rf dist/ && bun build --compile --production --outfile dist/mississippi-burn-bans-api src/index.ts",
     "dev": "bun run --hot src/index.ts",
