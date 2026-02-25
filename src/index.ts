@@ -50,7 +50,7 @@ const server = Bun.serve({
       const county = request.params.county.toLowerCase();
 
       const countyBurnBanData = burnBanData.find(
-        (data) => data.counties.toLowerCase() === county
+        (data) => data.counties.toLowerCase() === county,
       );
 
       if (!countyBurnBanData) {

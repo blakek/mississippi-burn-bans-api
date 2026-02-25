@@ -10,7 +10,7 @@ async function fetchNonce(): Promise<string> {
   const nonceMatch = /ninja_table_public_nonce=(?<nonce>[a-z0-9]+)/;
 
   const responseBody = await fetch(nonceUrl).then((response) =>
-    response.text()
+    response.text(),
   );
 
   if (!responseBody) {

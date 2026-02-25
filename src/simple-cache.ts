@@ -83,7 +83,7 @@ export class SimpleCache<T> {
   }
 
   async refresh(
-    customDuration: number | null = this.timeToLive
+    customDuration: number | null = this.timeToLive,
   ): Promise<void> {
     if (!(await this.hasCacheFile())) {
       return;
@@ -116,10 +116,10 @@ export class SimpleCache<T> {
 export function withCache<
   Fn extends (...args: any) => Promise<any>,
   Return = ReturnType<Fn>,
-  Args extends Parameters<Fn> = Parameters<Fn>
+  Args extends Parameters<Fn> = Parameters<Fn>,
 >(
   fn: Fn,
-  options: Partial<CacheOptions> = {}
+  options: Partial<CacheOptions> = {},
 ): (...args: Args) => Promise<Return> {
   const { cacheKey = fn.name, timeToLive = null } = options;
   const cache = new SimpleCache<Return>(cacheKey, timeToLive);
