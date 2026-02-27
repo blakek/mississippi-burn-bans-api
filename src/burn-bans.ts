@@ -1,3 +1,6 @@
+// @ts-expect-error - Bun allows importing files like this so they are bundled with the executable, but TypeScript doesn't know about it
+import certificatePem from "../certs/gsrsaovsslca2018.pem" with { type: "text" };
+
 export interface BurnBanData {
   county: string;
   issued: string;
@@ -24,11 +27,9 @@ export enum BurnBanExemption {
 
 type BurnBanDataResponse = { value: BurnBanDataRaw }[];
 
-const certificate = Bun.file(`${__dirname}/../certs/gsrsaovsslca2018.pem`);
-
 const requestInit: BunFetchRequestInit = {
   tls: {
-    ca: certificate,
+    ca: certificatePem,
   },
 };
 
@@ -63,7 +64,7 @@ function tryParseDate(dateString: string): string {
   return date.toISOString();
 }
 
-function getBurnBanRequest(nonce: string): Request {
+function buildBurnBanUrl(nonce: string): URL {
   const url = new URL("https://www.mfc.ms.gov/wp-admin/admin-ajax.php");
 
   url.searchParams.set("action", "wp_ajax_ninja_tables_public_action");
@@ -74,13 +75,7 @@ function getBurnBanRequest(nonce: string): Request {
   url.searchParams.set("limit_rows", "0");
   url.searchParams.set("ninja_table_public_nonce", nonce);
 
-  return new Request(url.href, {
-    ...requestInit,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
+  return url;
 }
 
 function parseBurnBanData(rawData: BurnBanDataRaw): BurnBanData {
@@ -110,8 +105,14 @@ function parseBurnBanData(rawData: BurnBanDataRaw): BurnBanData {
 
 export async function fetchBurnBanData(): Promise<BurnBanData[]> {
   const nonce = await fetchNonce();
-  const request = getBurnBanRequest(nonce);
-  const responseBody = await fetch(request);
+  const url = buildBurnBanUrl(nonce);
+  const responseBody = await fetch(url, {
+    ...requestInit,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
 
   if (!responseBody.ok) {
     throw new Error("Failed to fetch burn ban data");
