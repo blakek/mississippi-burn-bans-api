@@ -5,19 +5,26 @@ export interface BurnBanData {
   exemptions: string;
 }
 
+const certificate = Bun.file(`${__dirname}/../certs/gsrsaovsslca2018.pem`);
+
+const requestInit: BunFetchRequestInit = {
+  tls: {
+    ca: certificate,
+  },
+};
+
 async function fetchNonce(): Promise<string> {
   const nonceUrl = "https://www.mfc.ms.gov/burning-info/burn-bans/";
   const nonceMatch = /ninja_table_public_nonce=(?<nonce>[a-z0-9]+)/;
 
-  const responseBody = await fetch(nonceUrl).then((response) =>
-    response.text(),
-  );
+  const response = await fetch(nonceUrl, requestInit);
+  const responseText = await response.text();
 
-  if (!responseBody) {
+  if (!responseText) {
     throw new Error("Failed to fetch nonce");
   }
 
-  const nonce = responseBody.match(nonceMatch)?.groups?.nonce;
+  const nonce = responseText.match(nonceMatch)?.groups?.nonce;
 
   if (!nonce) {
     throw new Error("Failed to parse nonce");
@@ -51,6 +58,7 @@ export async function fetchBurnBanData(): Promise<BurnBanData[]> {
   url.searchParams.set("ninja_table_public_nonce", nonce);
 
   const responseBody = await fetch(url, {
+    ...requestInit,
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
