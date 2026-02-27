@@ -1,9 +1,28 @@
 export interface BurnBanData {
-  counties: string;
+  county: string;
   issued: string;
   expires: string;
-  exemptions: string;
+  exemptions: string[];
 }
+
+interface BurnBanDataRaw {
+  ___id___: number;
+  counties: string;
+  exemptions: string;
+  expires: string;
+  issued: string;
+}
+
+export enum BurnBanExemption {
+  "Mississippi Forestry Commission" = 1,
+  "Certified Burn Managers" = 2,
+  "County Fire Services" = 3,
+  "Commercial contractors following MDEQ regulations" = 4,
+  "Agricultural field burn" = 5,
+  "Other" = 6,
+}
+
+type BurnBanDataResponse = { value: BurnBanDataRaw }[];
 
 const certificate = Bun.file(`${__dirname}/../certs/gsrsaovsslca2018.pem`);
 
@@ -44,9 +63,7 @@ function tryParseDate(dateString: string): string {
   return date.toISOString();
 }
 
-export async function fetchBurnBanData(): Promise<BurnBanData[]> {
-  const nonce = await fetchNonce();
-
+function getBurnBanRequest(nonce: string): Request {
   const url = new URL("https://www.mfc.ms.gov/wp-admin/admin-ajax.php");
 
   url.searchParams.set("action", "wp_ajax_ninja_tables_public_action");
@@ -57,25 +74,49 @@ export async function fetchBurnBanData(): Promise<BurnBanData[]> {
   url.searchParams.set("limit_rows", "0");
   url.searchParams.set("ninja_table_public_nonce", nonce);
 
-  const responseBody = await fetch(url, {
+  return new Request(url.href, {
     ...requestInit,
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
   });
+}
+
+function parseBurnBanData(rawData: BurnBanDataRaw): BurnBanData {
+  return {
+    county: rawData.counties.trim(),
+    issued: tryParseDate(rawData.issued),
+    expires: tryParseDate(rawData.expires),
+    exemptions: rawData.exemptions
+      .replace(/&/g, ",")
+      .split(",")
+      .map((exemption) => exemption.trim())
+      .filter(Boolean)
+      .map((exemption) => {
+        const exemptionNumber = parseInt(exemption, 10);
+        if (isNaN(exemptionNumber)) {
+          return exemption;
+        }
+
+        if (exemptionNumber in BurnBanExemption) {
+          return BurnBanExemption[exemptionNumber];
+        }
+
+        return exemption;
+      }),
+  };
+}
+
+export async function fetchBurnBanData(): Promise<BurnBanData[]> {
+  const nonce = await fetchNonce();
+  const request = getBurnBanRequest(nonce);
+  const responseBody = await fetch(request);
 
   if (!responseBody.ok) {
     throw new Error("Failed to fetch burn ban data");
   }
 
-  const ninjaTableData: { value: BurnBanData }[] = await responseBody.json();
-
-  const burnBanData = ninjaTableData.map(({ value: row }) => ({
-    ...row,
-    issued: tryParseDate(row.issued),
-    expires: tryParseDate(row.expires),
-  }));
-
-  return burnBanData;
+  const ninjaTableData: BurnBanDataResponse = await responseBody.json();
+  return ninjaTableData.map((row) => parseBurnBanData(row.value));
 }
