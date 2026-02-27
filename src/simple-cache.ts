@@ -1,6 +1,7 @@
 import * as Bun from "bun";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 
 export interface Expirable<T> {
   value: T;
@@ -21,9 +22,11 @@ export class SimpleCache<T> {
   private timeToLive: number | null;
 
   constructor(cacheKey: string, timeToLive: number | null = null) {
-    // I'm storing this in an ignored folder near the implementation because that's easiest for me.
-    // This could be stored anywhere… remotely, as an in-memory object, whatever.
-    this.cacheFilePath = new URL(`.cache/${cacheKey}.json`, import.meta.url);
+    // Use a writable location. Compiled executables may mount $bunfs as read-only.
+    const cacheDir =
+      process.env.BURN_BANS_CACHE_DIR ?? path.join(process.cwd(), ".cache");
+
+    this.cacheFilePath = pathToFileURL(path.join(cacheDir, `${cacheKey}.json`));
     this.cacheFile = Bun.file(this.cacheFilePath);
 
     this.timeToLive = timeToLive;
